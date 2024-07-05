@@ -1,14 +1,18 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_restful import Resource, Api
 from flask_sqlalchemy import SQLAlchemy
-from flask import Flask
 import datetime
 import os
+from flask_cors import CORS
 
 app = Flask(__name__)
 api = Api(app)
+# CORS(app)  # Enable CORS
+# Enable CORS for all routes with specific origins
+CORS(app, resources={r"/*": {"origins": "http://localhost:5000"}})
 
-# base_dir = os.path.abspath(os.path.dirname(__file__))
+
+base_dir = os.path.abspath(os.path.dirname(__file__))
 # database_path = os.path.join(base_dir, 'student.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///student.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -16,13 +20,14 @@ db = SQLAlchemy(app)
 
 
 class StudentModel(db.Model):
-	student_id = db.Column(db.Integer, primary_key=True)
-	first_name = db.Column(db.String(200))
-	last_name = db.Column(db.String(200))
-	dob = db.Column(db.DateTime)
-	amount_due = db.Column(db.Integer())
-	created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
-	updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.now)
+    id = db.Column(db.Integer, primary_key=True)
+    student_id = db.Column(db.Integer, unique=True, nullable=False)
+    first_name = db.Column(db.String(200))
+    last_name = db.Column(db.String(200))
+    dob = db.Column(db.DateTime)
+    amount_due = db.Column(db.Integer())
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.now)
 
 # Ensure the database is created within the app context
 with app.app_context():
@@ -47,6 +52,7 @@ class Student(Resource):
     def post(self):
         data = request.get_json()
         new_student = StudentModel(
+            student_id=data['student_id'],
             first_name=data['first_name'],
             last_name=data['last_name'],
             dob=datetime.datetime.strptime(data['dob'], '%Y-%m-%d'),
@@ -70,8 +76,8 @@ class Student(Resource):
 
 class StudentDetail(Resource):
     # Get a single student by ID
-    def get(self, student_id):
-        student = StudentModel.query.filter_by(student_id=student_id).first()
+    def get(self, id):
+        student = StudentModel.query.filter_by(id=id).first()
         if not student:
             return jsonify({'message': 'Student not found'}), 404
         return jsonify({
@@ -85,9 +91,9 @@ class StudentDetail(Resource):
         })
 
     # Update a student by ID
-    def put(self, student_id):
+    def put(self, id):
         data = request.get_json()
-        student = StudentModel.query.filter_by(student_id=student_id).first()
+        student = StudentModel.query.filter_by(id=id).first()
         if not student:
             return jsonify({'message': 'Student not found'}), 404
         # Check if 'dob' key exists in data
@@ -113,8 +119,8 @@ class StudentDetail(Resource):
         })
 
     # Delete a student by ID
-    def delete(self, student_id):
-        student = StudentModel.query.filter_by(student_id=student_id).first()
+    def delete(self, id):
+        student = StudentModel.query.filter_by(id=id).first()
         if not student:
             return jsonify({'message': 'Student not found'}), 404
         db.session.delete(student)
@@ -126,6 +132,9 @@ class StudentDetail(Resource):
 api.add_resource(Student, '/students')
 api.add_resource(StudentDetail, '/students/<int:student_id>')
 
+@app.route('/')
+def index():
+    return send_from_directory(base_dir, 'templates/index.html')
 
 if __name__ == '__main__':
 	app.run(debug=True)

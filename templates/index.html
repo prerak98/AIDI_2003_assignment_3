@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Management</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 20px;
+            background-color: #f4f4f9;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h3 class="my-4">Student Management</h3>
+
+        <form id="studentForm" class="mb-4">
+            <div class="form-group">
+                <label for="student_id">Student ID:</label>
+                <input type="number" class="form-control" id="student_id" name="student_id" required>
+            </div>
+            <div class="form-group">
+                <label for="first_name">First Name:</label>
+                <input type="text" class="form-control" id="first_name" name="first_name" required>
+            </div>
+            <div class="form-group">
+                <label for="last_name">Last Name:</label>
+                <input type="text" class="form-control" id="last_name" name="last_name" required>
+            </div>
+            <div class="form-group">
+                <label for="dob">Date of Birth (YYYY-MM-DD):</label>
+                <input type="date" class="form-control" id="dob" name="dob" required>
+            </div>
+            <div class="form-group">
+                <label for="amount_due">Amount Due:</label>
+                <input type="number" class="form-control" id="amount_due" name="amount_due" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Add Student</button>
+        </form>
+
+        <h2>Student List</h2>
+        <table class="table table-striped table-bordered">
+            <thead class="thead-dark">
+                <tr>
+                    <th>Student ID</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Date of Birth</th>
+                    <th>Amount Due</th>
+                    <th>Created At</th>
+                    <th>Updated At</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="studentTableBody">
+                <!-- Table rows will be inserted here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        fetchStudents();
+
+        document.getElementById('studentForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            addStudent();
+        });
+    });
+
+    function fetchStudents() {
+        fetch('http://127.0.0.1:5000/students')
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.getElementById('studentTableBody');
+                tableBody.innerHTML = '';
+                data.forEach(student => {
+                    const row = document.createElement('tr');
+                    row.setAttribute('data-id', student.id);
+                    row.innerHTML = `
+                        <td>${student.student_id}</td>
+                        <td>${student.first_name}</td>
+                        <td>${student.last_name}</td>
+                        <td>${student.dob}</td>
+                        <td>${student.amount_due}</td>
+                        <td>${student.created_at}</td>
+                        <td>${student.updated_at}</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm" onclick="editStudent(event)">Update</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteStudent(event)">Delete</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            })
+            .catch(error => console.error('Error fetching students:', error));
+    }
+
+    function addStudent() {
+        const formData = new FormData(document.getElementById('studentForm'));
+        const studentData = {
+            student_id: formData.get('student_id'),
+            first_name: formData.get('first_name'),
+            last_name: formData.get('last_name'),
+            dob: formData.get('dob'),
+            amount_due: formData.get('amount_due')
+        };
+
+        fetch('http://127.0.0.1:5000/students', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(studentData)
+        })
+        .then(response => {
+            if (response.ok) {
+                fetchStudents();
+                document.getElementById('studentForm').reset();
+            } else {
+                console.error('Error adding student:', response.statusText);
+            }
+        })
+        .catch(error => console.error('Error adding student:', error));
+    }
+
+    function editStudent(event) {
+        const studentId = event.target.closest('tr').getAttribute('data-id');
+        console.log(`Editing student with ID: ${studentId}`);
+        fetch(`http://127.0.0.1:5000/students/${studentId}`)
+            .then(response => response.json())
+            .then(student => {
+                console.log('Student data fetched for editing:', student);
+                document.getElementById('student_id').value = student.student_id;
+                document.getElementById('first_name').value = student.first_name;
+                document.getElementById('last_name').value = student.last_name;
+                document.getElementById('dob').value = student.dob;
+                document.getElementById('amount_due').value = student.amount_due;
+
+                document.getElementById('studentForm').onsubmit = function(event) {
+                    event.preventDefault();
+                    updateStudent(studentId);
+                };
+            })
+            .catch(error => console.error('Error fetching student:', error));
+    }
+
+    function updateStudent(studentId) {
+        console.log(`Updating student with ID: ${studentId}`);
+        const formData = new FormData(document.getElementById('studentForm'));
+        const studentData = {
+            first_name: formData.get('first_name'),
+            last_name: formData.get('last_name'),
+            dob: formData.get('dob'),
+            amount_due: formData.get('amount_due')
+        };
+
+        fetch(`http://127.0.0.1:5000/students/${studentId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(studentData)
+        })
+        .then(response => {
+            if (response.ok) {
+                fetchStudents();
+                document.getElementById('studentForm').reset();
+                document.getElementById('studentForm').onsubmit = function(event) {
+                    event.preventDefault();
+                    addStudent();
+                };
+            } else {
+                console.error('Error updating student:', response.statusText);
+            }
+        })
+        .catch(error => console.error('Error updating student:', error));
+    }
+
+    function deleteStudent(event) {
+        const studentId = event.target.closest('tr').getAttribute('data-id');
+        console.log(`Deleting student with ID: ${studentId}`);
+        fetch(`http://127.0.0.1:5000/students/${studentId}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (response.ok) {
+                fetchStudents();
+            } else {
+                console.error('Error deleting student:', response.statusText);
+            }
+        })
+        .catch(error => console.error('Error deleting student:', error));
+    }
+    </script>
+</body>
+</html>
